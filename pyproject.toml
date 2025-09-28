@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "py4om"
+version = "0.1.0"
+description = "A tool for reading, modifying and writing OpenMolcas input files, running OpenMolcas, and extracting results from OpenMolcas outputs."
+authors = [
+    { name="Jie J. Bao", email="baoxx138@umn.edu" }
+]
+readme = "README.md"
+requires-python = ">=3.7"
+license = { text = "AGPL-NC" }
+dependencies = []
+
+[project.scripts]
+py4om = "py4om:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
