@@ -1,8 +1,11 @@
 import os
 import re
 import json
-from utils.asserters import dict_contains_key, value_type_checker, list_contains_element
-from utils.string_utils import string_converter, list_contains_string, string_type_finder
+from utils.asserters import dict_contains_key, value_type_checker, \
+                            list_contains_element
+from utils.string_utils import string_converter, list_contains_string,\
+                                string_type_finder, string_converter_with_value
+from utils.list_utils import check_list_elements
 
 
 modules = {'&TEMPLATE': 'Template module for testing purposes.',
@@ -102,13 +105,16 @@ class OpenMolcasModules():
             line = line.strip()
             if line == '':
                 continue
+            print(f"Processing line: '{line}'")
             if list_contains_string(line, new_line_strings, ignore_case=True, matching_start=True):
+                print('hello 1')
                 if current_key is not None:
                     list_keys.append(current_key)
                     list_values.append(current_values)
                 current_key = line
                 current_values = []
-            elif list_contains_string(line, same_line_strings, ignore_case=True, matching_start=True):
+            elif list_contains_string(line[0], same_line_strings, ignore_case=True, matching_start=True):
+                print('hello 2')
                 if current_key is not None:
                     list_keys.append(current_key)
                     list_values.append(current_values)
@@ -116,6 +122,7 @@ class OpenMolcasModules():
                 current_values = [line]
                 checker_for_same_line = True
             else:
+                print('hello 3')
                 if checker_for_same_line:
                     raise ValueError(f"Line '{line}' is not expected after a same-line key '{current_values[0]}'.")
                 if current_key is None:
@@ -143,12 +150,12 @@ class OpenMolcasModules():
     
 # keyword value getter from a list according to keyword type:
     @staticmethod
-    def get_value_from_list(list, allowed_values):
-        assert isinstance(list, list)
-        assert all(isinstance(item, str) for item in list)
+    def get_value_from_list_to_single(inplist, allowed_types, allowed_values=None):
+        assert isinstance(inplist, list)
+        assert all(isinstance(item, str) for item in inplist)
         assert isinstance(allowed_values, list) or allowed_values is None
+        assert len(inplist) == 1, "Input list must contain exactly one element for single line."
 
-        if len(list) == 0:
-            assert bool in allowed_values, "Empty list is not allowed for this keyword."
-            return True  # empty list is considered as True for boolean type
-        elif len(list) == 1:
+        value, if_converted = string_converter_with_value(inplist[0], allowed_types, allowed_values)
+        assert if_converted, f"Cannot convert '{inplist[0]}' to any of the allowed types {allowed_types} and values {allowed_values}."
+        return value

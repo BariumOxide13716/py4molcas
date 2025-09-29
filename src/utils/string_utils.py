@@ -2,55 +2,72 @@ def string_converter(string, target_types):
     """
     Convert a string value to the first one in the target type list.
     If conversion is not possible, return the original string.
+    order of types: int, float, list/str
     """
     assert isinstance(string, str)
     if isinstance(target_types, type):
+        if target_types == list:
+            return string.split(), True
         target_types = [target_types]
     for target_type in target_types:
-        converted = _string_converter(string, target_type)
-        if type(converted) != type(string):
-            return converted
-    return string
+        converted, if_converted = _string_converter(string, target_type)
+        if if_converted:
+            return converted, True
+    return string, False
 
 def _string_converter(string, target_type):
     """
-    Convert a string to the target type.
+    Convert a string to the target type in [int, float, bool]
+    For other types, return to string as is.
     If conversion is not possible, return the original string.
     """
     assert isinstance(string, str)
-    try:
-        if target_type == bool:
-            if string.lower() in ['true', 't', '.true.', '1']:
-                return True
-            elif string.lower() in ['false', 'f', '.false.', '0']:
-                return False
-            else:
-                return string
-        elif target_type == list:
-            return string.split()
-        return target_type(string)
-    except (ValueError, TypeError):
-        return string
+    if target_type == int:
+        try:
+            return int(string), True
+        except ValueError:
+            return string, False
+    elif target_type == float:
+        try:
+            return float(string), True
+        except ValueError:
+            return string, False
+    elif target_type == bool:
+        if string.lower() in ['true', 't', '.true.', '1']:
+            return True, True
+        elif string.lower() in ['false', 'f', '.false.', '0']:
+            return False, True
+        else:
+            return string, False
+    elif target_type == list:
+        return string.split(), True
+    else:
+        return string, False
     
 def string_type_finder(string):
     """
     Find the type of a string value.
     The order of types to check is: bool, int, float, str.
+    If the type is found, return the type and True.
+    If the type is not found, return str and False.
     """
+    if string is '':
+        return bool, True
     assert isinstance(string, str)
     if string.lower() in ['true', 't', '.true.', '1', 'false', 'f', '.false.', '0']:
-        return bool
+        return bool, True
     try:
         int(string)
-        return int
+        return int, True
     except ValueError:
         pass
     try:
         float(string)
-        return float
+        return float, True
     except ValueError:
         pass
-    return str
+    return str, True
+    
 
 def list_contains_string(string, lst, ignore_case=False, matching_start=False):
     assert isinstance(string, str)
@@ -63,7 +80,7 @@ def list_contains_string(string, lst, ignore_case=False, matching_start=False):
             if isinstance(item, str) and string.startswith(item):
                 return True
         return False
-
+    print(f"Checking if '{string}' is in {lst}")
     return string in lst
 
 def find_string_in_list(orig_string, orig_lst, ignore_case=False, matching_start=False):
@@ -90,3 +107,59 @@ def find_string_in_list(orig_string, orig_lst, ignore_case=False, matching_start
         if string == item:
             return orig_item
     return None
+
+
+def string_converter_with_value(string, allowed_types, allowed_values=[]):
+    """
+    Converting a string to the value of a keyword, by mimicking human reading.
+    First split the string to a list, obtain the number of elements in the list.
+    If the number of elements > 1, check if list is in allowed types. If so, return the list and True; if not,
+    check if str is in allowed types, if so, return the string and True, otherwise return string and False.
+    If the number of elements is 1, loop over each type in allowed_types.
+    Try to convert the string to the type. 
+    If conversion is successful, when the allowed_values is provided, check
+    if the converted value is one of the allowed values, if so, return the allowed value and True, otherwise
+    continue to the next type; when the allowed values is not provided, continue to the next type. 
+    If the conversion fails, continue to the next type.
+    If all types are checked, return the string and False.
+    """
+
+    if isinstance(allowed_types, type):
+        allowed_types = [allowed_types]
+    assert isinstance(allowed_types, list)
+    assert all([isinstance(t, type) for t in allowed_types]), "allowed_types should be a type or a list of types."
+    if allowed_values is None:
+        allowed_values = []
+    assert isinstance(allowed_values, list)
+
+    if string is None or string == '':
+        if bool in allowed_types:
+            return False, True
+        else:
+            return string, False
+    
+    if not isinstance(string, str):
+        return string, True
+    
+    assert isinstance(string, str)
+    
+    my_list = string.split()
+    n_elem = len(my_list)
+
+    if n_elem > 1:
+        if list in allowed_types:
+            return my_list, True
+        elif str in allowed_types:
+            return string, True
+        else:
+            return string, False
+    else:
+        for t in allowed_types:
+            converted, if_converted = _string_converter(string, t)
+            if if_converted:
+                if allowed_values:
+                    if converted in allowed_values:
+                        return converted, True
+                else:
+                        return converted, True
+    return string, False
