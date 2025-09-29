@@ -4,7 +4,7 @@ import json
 from utils.asserters import dict_contains_key, value_type_checker, \
                             list_contains_element
 from utils.string_utils import string_converter, list_contains_string,\
-                                string_type_finder, string_converter_with_value
+                                string_converter_with_value
 from utils.list_utils import check_list_elements
 
 
@@ -13,18 +13,24 @@ modules = {'&TEMPLATE': 'Template module for testing purposes.',
 
 templatekwd = {
     'BOOL': {'type': [bool],
-                'required': False},
+                'required': False
+                },
     'INT': {'type': [int],
                 'required': False,
-                'allowed_value': [0, 1, 2]},
+                'allowed_value': [0, 1, 2]
+                },
     'FLOAT': {'type': [float],
-                'required': False},
+                'required': False
+                },
     'LIST': {'type': [list],
              'subtype': [int, float, str], # put str in the last place
-                'required': False},
-    'MULTILINE': {'type': [list],
+                'required': False
+                },
+    'BLOCK': {'type': [list],
                 'required': False,
-                'multiline': [list]  # each element in the list is a list of values in that line
+                'nsubblock': 2,
+                'block': [[list], [list]],  # each element in the list is a list of values in that line
+                'subtype': [[int], [float]]  # each element in the subtype is a list of allowed types for each value in that line
             },
     'SUBKEY': {'type': [dict],
                  'required': False,
@@ -49,7 +55,10 @@ class OpenMolcasModules():
         OpenMolcasModules.emil_commands = ['>']
         OpenMolcasModules.comment_chars = ['*']
         OpenMolcasModules.modules = modules
-
+        OpenMolcasModules.emil_name = 'emil'
+        OpenMolcasModules.block_name = 'block'
+        OpenMolcasModules.subkey_name = 'subkey'
+        OpenMolcasModules.special_name = 'special'
 
     @staticmethod
     def openmolcas_input_to_list(filename):
@@ -65,7 +74,7 @@ class OpenMolcasModules():
                 continue
             line = re.split(r'[=;]+', line)
             new_lines.extend(line)
-        print(new_lines)
+        #print(new_lines)
         return new_lines
 
     @staticmethod
@@ -92,6 +101,7 @@ class OpenMolcasModules():
         assert isinstance(new_line_strings, list)
         assert isinstance(same_line_strings, list)
 
+
         if not new_line_strings and not same_line_strings:
             raise ValueError("At least one of new_line_strings or same_line_strings must be provided.")
 
@@ -105,16 +115,13 @@ class OpenMolcasModules():
             line = line.strip()
             if line == '':
                 continue
-            print(f"Processing line: '{line}'")
             if list_contains_string(line, new_line_strings, ignore_case=True, matching_start=True):
-                print('hello 1')
                 if current_key is not None:
                     list_keys.append(current_key)
                     list_values.append(current_values)
                 current_key = line
                 current_values = []
             elif list_contains_string(line[0], same_line_strings, ignore_case=True, matching_start=True):
-                print('hello 2')
                 if current_key is not None:
                     list_keys.append(current_key)
                     list_values.append(current_values)
@@ -122,7 +129,6 @@ class OpenMolcasModules():
                 current_values = [line]
                 checker_for_same_line = True
             else:
-                print('hello 3')
                 if checker_for_same_line:
                     raise ValueError(f"Line '{line}' is not expected after a same-line key '{current_values[0]}'.")
                 if current_key is None:
@@ -143,12 +149,16 @@ class OpenMolcasModules():
         )
 
     def line_list_to_keywords(self, input_list):
+        assert isinstance(input_list, list)
+        if input_list[0].strip()[0] in OpenMolcasModules.emil_commands:
+            return [OpenMolcasModules.emil_name], input_list
         return OpenMolcasModules.convert_list_to_k_v_lists(
             input_list,
             new_line_strings=list(self.module_kwd.keys())
         )
     
 # keyword value getter from a list according to keyword type:
+
     @staticmethod
     def get_value_from_list_to_single(inplist, allowed_types, allowed_values=None):
         assert isinstance(inplist, list)
@@ -159,3 +169,143 @@ class OpenMolcasModules():
         value, if_converted = string_converter_with_value(inplist[0], allowed_types, allowed_values)
         assert if_converted, f"Cannot convert '{inplist[0]}' to any of the allowed types {allowed_types} and values {allowed_values}."
         return value
+
+    @staticmethod
+    def get_value_from_list_to_block(inplist, allowed_types=[[]], nblock=1, nsubblock=1):
+        """
+        Convert a list of lines to a matrix of lines, with the shape from nblock*nsubblock to (nsubblock, nblock).
+        Each line is further converted to the type according to the allowed_types.
+        """
+        assert isinstance(inplist, list)
+        assert isinstance(nblock, int) and nblock >= 1
+        assert isinstance(nsubblock, int) and nsubblock >= 1
+        assert isinstance(allowed_types, list)
+        assert all(isinstance(item, list) for item in allowed_types)
+        assert len(allowed_types) == nsubblock, "Length of allowed_types must be equal to nsubblock."
+        
+        reshaped_matrix = nsubblock * [[]]
+        line_counter = 0
+        block_counter = 0
+
+        for line_counter in range(len(inplist)):
+            line = inplist[line_counter]
+            if line_counter % nsubblock == 0 and line_counter > 0:
+                block_counter += 1
+            subblock_line_counter = line_counter % nsubblock
+            converted_line = string_converter(line, allowed_types[subblock_line_counter])
+            reshaped_matrix[subblock_line_counter].append(converted_line)
+
+        return reshaped_matrix
+
+    def set_value_from_list_boolean(self, keyword, values):
+        assert isinstance(keyword, str)
+        assert isinstance(values, list)
+        assert len(values) == 1, f"Keyword '{keyword}' expects a single boolean value, but got {len(values)} values."
+        value = values[0]
+        dict_contains_key(keyword, self.module_kwd)
+        assert bool in self.module_kwd[keyword]['type'], f"Keyword '{keyword}' is not of type bool."
+        converted_value, if_converted = string_converter_with_value(value, [bool])
+        assert if_converted, f"Cannot convert '{value}' to bool."
+        self.keywords[keyword] = converted_value
+    
+    def set_value_from_list_single(self, keyword, inplist):
+        assert isinstance(keyword, str)
+        assert isinstance(inplist, list)
+        dict_contains_key(keyword, self.module_kwd)
+        assert len(inplist) == 1, f"Keyword '{keyword}' expects a single value, but got {len(inplist)} values."
+        allowed_types = self.module_kwd[keyword]['type']
+        allowed_values = self.module_kwd[keyword].get('allowed_value', None)
+        value = OpenMolcasModules.get_value_from_list_to_single(inplist, allowed_types, allowed_values)
+        self.keywords[keyword] = value
+    
+    def set_value_from_list_block(self, keyword, inplist):
+        assert isinstance(keyword, str)
+        assert isinstance(inplist, list)
+        dict_contains_key(keyword, self.module_kwd)
+
+        
+        nsubblock = self.module_kwd[keyword].get('nsubblock', 1)
+
+        nblock = int(inplist[0])
+        assert nblock * nsubblock == len(inplist) - 1, \
+            f"Keyword '{keyword}' expects {nblock*nsubblock} lines of values, but got {len(inplist) - 1} lines."
+
+        allowed_types = self.module_kwd[keyword].get('subtype', [[]]*nsubblock)
+        assert len(allowed_types) == nsubblock, \
+        f"Keyword '{keyword}' expects {nsubblock} subblocks, but got {len(allowed_types)} subtypes."
+
+        value = OpenMolcasModules.get_value_from_list_to_block(inplist, allowed_types, nblock, nsubblock)
+        self.keywords[keyword] = value
+    
+    def set_value_from_list_subkey(self, keyword, inplist):
+        assert isinstance(keyword, str)
+        assert isinstance(inplist, list)
+        assert inplist[-1].strip().startswith('END OF'), f"Subkey block must end with 'END OF {keyword}'."
+        dict_contains_key(keyword, self.module_kwd)
+        dict_contains_key(OpenMolcasModules.subkey_name, self.module_kwd[keyword])
+        subkey_dict = self.module_kwd[keyword][OpenMolcasModules.subkey_name]
+        
+        subkey_list, subkey_contents = OpenMolcasModules.convert_list_to_k_v_lists(
+            inplist,
+            new_line_strings=list(subkey_dict.keys())
+        )
+        value_dict = {}
+        for sk, content in zip(subkey_list, subkey_contents):
+            dict_contains_key(sk, subkey_dict)
+            allowed_types = subkey_dict[sk]['type']
+            allowed_values = subkey_dict[sk].get('allowed_value', None)
+            assert len(content) == 1, f"Subkey '{sk}' expects a single value, but got {len(content)} values."
+            v = OpenMolcasModules.get_value_from_list_to_single(content, allowed_types, allowed_values)
+            value_dict[sk] = v
+        self.keywords[keyword] = value_dict
+    
+    def set_value_from_list_SPECIAL(self, keyword, inplist):
+        assert isinstance(keyword, str)
+        assert isinstance(inplist, list)
+        dict_contains_key(keyword, self.module_kwd)
+        dict_contains_key(OpenMolcasModules.special_name, self.module_kwd[keyword])
+        special_dict = self.module_kwd[keyword][OpenMolcasModules.special_name]
+
+        special_keys = list(special_dict.keys())
+        special_values = {}
+        
+        line_counter = 0
+        nkeys = 2
+        special_values['n_block'] = int(inplist[0])
+        special_values['key1'] = []
+        special_values['key2'] = []
+        for line_counter in range(nkeys):
+            line = inplist[line_counter + 1]
+            if line_counter % nkeys == 0:
+                special_values['key1'].append(string_converter(line, special_dict['key1'][0]))
+            else:
+                special_values['key2'].append(string_converter(line, special_dict['key2'][0]))
+        self.keywords[keyword] = special_values
+
+    def set_value_from_list(self, keyword, inplist):
+        assert isinstance(keyword, str)
+        assert isinstance(inplist, list)
+        
+        if len(inplist) == 0:
+            self.set_value_from_list_boolean(keyword, [True])
+            return
+        elif len(inplist) == 1:
+            self.set_value_from_list_single(keyword, inplist)
+        else:
+            dict_contains_key(keyword, self.module_kwd)
+            if OpenMolcasModules.block_name in self.module_kwd[keyword]:
+                self.set_value_from_list_block(keyword, inplist)
+            elif OpenMolcasModules.subkey_name in self.module_kwd[keyword]:
+                self.set_value_from_list_subkey(keyword, inplist)
+            elif OpenMolcasModules.special_name in self.module_kwd[keyword]:
+                if keyword == 'SPECIAL':
+                    self.set_value_from_list_SPECIAL(keyword, inplist)
+                else:
+                    raise NotImplementedError(f"Special handling for keyword '{keyword}' is not implemented.")
+            else:
+                raise ValueError(f"Keyword '{keyword}' with multiple lines is not recognized as BLOCK, SUBKEY, or SPECIAL.")
+        
+    def show_keywords(self):
+        print(f"Module: {self.module_name}")
+        for key, value in self.keywords.items():
+            print(f"  {key}: {value}")

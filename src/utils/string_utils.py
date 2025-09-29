@@ -44,30 +44,7 @@ def _string_converter(string, target_type):
     else:
         return string, False
     
-def string_type_finder(string):
-    """
-    Find the type of a string value.
-    The order of types to check is: bool, int, float, str.
-    If the type is found, return the type and True.
-    If the type is not found, return str and False.
-    """
-    if string is '':
-        return bool, True
-    assert isinstance(string, str)
-    if string.lower() in ['true', 't', '.true.', '1', 'false', 'f', '.false.', '0']:
-        return bool, True
-    try:
-        int(string)
-        return int, True
-    except ValueError:
-        pass
-    try:
-        float(string)
-        return float, True
-    except ValueError:
-        pass
-    return str, True
-    
+   
 
 def list_contains_string(string, lst, ignore_case=False, matching_start=False):
     assert isinstance(string, str)
@@ -80,7 +57,6 @@ def list_contains_string(string, lst, ignore_case=False, matching_start=False):
             if isinstance(item, str) and string.startswith(item):
                 return True
         return False
-    print(f"Checking if '{string}' is in {lst}")
     return string in lst
 
 def find_string_in_list(orig_string, orig_lst, ignore_case=False, matching_start=False):

@@ -4,9 +4,11 @@ BOOL
 INT = 2
 FLOAT = -1.0
 LIST = 4 1 2 3 4
-MULTILINE = 2
+BLOCK = 2
 1 6 9
+ 0.2
 1 7 10
+ 0.5
 SUBKEY
 SK1 = 2
 SK2
