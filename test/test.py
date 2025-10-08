@@ -22,9 +22,10 @@ for mod, content in zip(module_list, module_contents):
     print(values)
     if mod == '&TEMPLATE':
         for kwd, val in zip(keywords, values):
-            print(f"  {kwd}: {val}")
+            #print(f"  {kwd}: {val}")
             omm.set_value_from_list(kwd, val)
-        print(omm.module_kwd)
+        #print(omm.module_kwd)
+        omm.show_keywords()
         print()
 
 exit()

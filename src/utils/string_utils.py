@@ -15,6 +15,34 @@ def string_converter(string, target_types):
             return converted, True
     return string, False
 
+def string_list_converter(inplist, allowed_types):
+    assert isinstance(inplist, list)
+    assert all(isinstance(item, str) for item in inplist)
+    assert isinstance(allowed_types, list)
+    assert all(isinstance(t, type) for t in allowed_types)
+    converted_list = []
+    for item in inplist:
+        converted_item, if_converted = string_converter(item, allowed_types)
+        assert if_converted, f"Cannot convert '{item}' to any of the allowed types {allowed_types}."
+        converted_list.append(converted_item)
+    return converted_list
+
+def string_matrix_converter(inpmat, allowed_types):
+    assert isinstance(inpmat, list)
+    assert all(isinstance(row, list) for row in inpmat)
+    assert all(all(isinstance(item, str) for item in row) for row in inpmat)
+    assert isinstance(allowed_types, list)
+    assert all(isinstance(t, type) for t in allowed_types)
+    converted_mat = []
+    for row in inpmat:
+        converted_row = []
+        for item in row:
+            converted_item, if_converted = string_converter(item, allowed_types)
+            assert if_converted, f"Cannot convert '{item}' to any of the allowed types {allowed_types}."
+            converted_row.append(converted_item)
+        converted_mat.append(converted_row)
+    return converted_mat
+
 def _string_converter(string, target_type):
     """
     Convert a string to the target type in [int, float, bool]
@@ -22,6 +50,7 @@ def _string_converter(string, target_type):
     If conversion is not possible, return the original string.
     """
     assert isinstance(string, str)
+    assert isinstance(target_type, type)
     if target_type == int:
         try:
             return int(string), True
