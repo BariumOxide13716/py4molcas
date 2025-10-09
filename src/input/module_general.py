@@ -242,7 +242,7 @@ class OpenMolcasModules():
         f"Keyword '{keyword}' expects {nsubblock} subblocks, but got {len(allowed_types)} types."
 
         converted_value = OpenMolcasModules.get_value_from_list_to_block(inplist, allowed_types, nblock, nsubblock)
-        print(f"converted_value for {keyword}: {converted_value}")
+        #print(f"converted_value for {keyword}: {converted_value}")
         if 'subtype' in self.module_kwd[keyword]:
             subtype = self.module_kwd[keyword]['subtype']
             assert len(subtype) == nsubblock, \

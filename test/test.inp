@@ -21,4 +21,6 @@ SPECIAL
 5 6 7 8
 4 4
 
+
 >> COPY ABC DEF
+>> COPY GHI JKL

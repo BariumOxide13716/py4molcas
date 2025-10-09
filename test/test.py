@@ -26,7 +26,7 @@ for mod, content in zip(module_list, module_contents):
             omm.set_value_from_list(kwd, val)
         #print(omm.module_kwd)
         omm.show_keywords()
-        print()
+    print()
 
 exit()
 

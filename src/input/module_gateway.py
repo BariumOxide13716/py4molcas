@@ -1,5 +1,6 @@
 
 from .basis_set_list import basis_set_list
+from .module_general import OpenMolcasModules as modules
 import numpy as np
 
 
@@ -16,7 +17,8 @@ gatewaykwd = {
                          'required': True,
                          'allowed_value': basis_set_list
                         },
-        'GROU': { 'type': [list, str],
+        'GROU': { 'type': [list],
+                  'subtype': [str],
                           'required': True},
                 'RICD': { 'type': [bool],
                          'required': False},
@@ -24,3 +26,6 @@ gatewaykwd = {
                          'required': False}
         }
 
+class Gateway(modules):
+    super.__init__()
+    
