@@ -24,3 +24,19 @@ SPECIAL
 
 >> COPY ABC DEF
 >> COPY GHI JKL
+
+*&GATEWAY
+*COORD
+*2
+*Angstrom
+*H   0.0  0.0  0.0
+*H   0.0  0.0  0.7
+*Basis = STO-3G
+*Group = C1
+*
+*&SEWARD
+*GRID INPUT
+*ultrafine
+*END OF GRID INPUT
+*
+*&SCF

@@ -168,3 +168,4 @@ def string_converter_with_value(string, allowed_types, allowed_values=[]):
                 else:
                         return converted, True
     return string, False
+

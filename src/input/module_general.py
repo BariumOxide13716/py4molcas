@@ -1,16 +1,19 @@
 import os
 import re
-import json
 from utils.asserters import dict_contains_key, value_type_checker, \
                             list_contains_element
 from utils.string_utils import string_converter, list_contains_string,\
                                 string_converter_with_value, string_list_converter,\
                                 string_matrix_converter
 from utils.list_utils import list_to_matrix
-
+from input.module_emil import OpenMolcasEmil as ome
 
 modules = {'&TEMPLATE': 'Template module for testing purposes.',
-           '&GATEWAY': 'Geometry, basis set, point group, and other settings.'}
+           '&GATEWAY': 'Geometry, basis set, point group, and other settings.',
+           '&SCF': 'Self-consistent field (SCF) calculations.',
+           '&RASSCF': 'Restricted active space self-consistent field (RASSCF) calculations.',
+           '&CASPT2': 'Complete active space second-order perturbation theory (CASPT2) calculations.',
+           "&SEWARD": "Integral calculations."}
 
 templatekwd = {
     'BOOL': {'type': [bool],
@@ -50,17 +53,18 @@ templatekwd = {
 }
 
 class OpenMolcasModules():
+    emil_commands = ome.emil_commands
+    comment_chars = ['*']
+    modules = modules
+    emil_name = 'emil'
+    block_name = 'block'
+    subkey_name = 'subkey'
+    special_name = 'special'
     def __init__(self):
         self.module_name = "TEMPLATE"
         self.module_kwd = templatekwd
         self.keywords = {}
-        OpenMolcasModules.emil_commands = ['>']
-        OpenMolcasModules.comment_chars = ['*']
-        OpenMolcasModules.modules = modules
-        OpenMolcasModules.emil_name = 'emil'
-        OpenMolcasModules.block_name = 'block'
-        OpenMolcasModules.subkey_name = 'subkey'
-        OpenMolcasModules.special_name = 'special'
+
 
     @staticmethod
     def openmolcas_input_to_list(filename):
@@ -72,6 +76,8 @@ class OpenMolcasModules():
         new_lines = []
         for line in lines:
             line = line.strip()
+            if line.startswith(tuple(OpenMolcasModules.comment_chars)):
+                continue
             if line == '':
                 continue
             line = re.split(r'[=;]+', line)
@@ -103,7 +109,6 @@ class OpenMolcasModules():
         assert isinstance(new_line_strings, list)
         assert isinstance(same_line_strings, list)
 
-
         if not new_line_strings and not same_line_strings:
             raise ValueError("At least one of new_line_strings or same_line_strings must be provided.")
 
@@ -123,6 +128,7 @@ class OpenMolcasModules():
                     list_values.append(current_values)
                 current_key = line
                 current_values = []
+                checker_for_same_line = False
             elif list_contains_string(line[0], same_line_strings, ignore_case=True, matching_start=True):
                 if current_key is not None:
                     list_keys.append(current_key)
@@ -143,10 +149,11 @@ class OpenMolcasModules():
             list_values.append(current_values)
         return list_keys, list_values
 
-    def line_list_to_modules(self, input_list):
+    @staticmethod
+    def line_list_to_modules(input_list):
         return OpenMolcasModules.convert_list_to_k_v_lists(
             input_list,
-            new_line_strings=list(self.modules.keys()),
+            new_line_strings=list(OpenMolcasModules.modules.keys()),
             same_line_strings=OpenMolcasModules.emil_commands
         )
 
@@ -172,6 +179,65 @@ class OpenMolcasModules():
         assert if_converted, f"Cannot convert '{inplist[0]}' to any of the allowed types {allowed_types} and values {allowed_values}."
         return value
     
+    @staticmethod
+    def single_value_to_molcas_input_string(key, value):
+        assert isinstance(key, str)
+        key = key.strip().upper()
+        assert isinstance(value, (bool, int, float, str, list))
+        if isinstance(value, bool):
+            if value:
+                return f" {key}\n"
+            else:
+                return None
+        elif isinstance(value, (int, float, str)):
+            return f" {key} = {value}\n"
+        elif isinstance(value, list):
+            value_str = ' '.join(str(v) for v in value)
+            return f" {key} = {value_str}\n"
+        else:
+            raise ValueError(f"Unsupported value type: {type(value)}")
+        
+    @staticmethod
+    def block_value_to_molcas_input_string(key, matrix):
+        assert isinstance(key, str)
+        key = key.strip().upper()
+        assert isinstance(matrix, list)
+        assert all(isinstance(row, list) for row in matrix)
+        nsubblock = len(matrix)
+        nblock = len(matrix[0]) if nsubblock > 0 else 0
+        assert nsubblock > 0 and nblock > 0, "Block matrix must have at least one row and one column."
+
+        output = f" {key}\n  {nblock}\n"
+        output_list = []
+        for i in range(nblock):
+            for j in range(nsubblock):
+                row = matrix[j][i]
+                assert isinstance(row, list)
+                row_str = ' '.join(str(v) for v in row)
+                output_list.append(f"  {row_str}")
+
+        output += '\n'.join(output_list)
+        return output + '\n'
+
+    @staticmethod
+    def dict_value_to_molcas_input_string(key,  inp_dict):
+        assert isinstance(key, str)
+        key = key.strip().upper()
+        assert isinstance(inp_dict,  dict)
+        output = f" {key}\n"
+        for subkey, value in inp_dict.items():
+            subkey = subkey.strip().upper()
+            assert isinstance(value, (bool, int, float, str, list))
+            if isinstance(value, list):
+                value_str = ' '.join(str(v) for v in value)
+                output += f"  {subkey} = {value_str}\n"
+            elif isinstance(value, bool):
+                if value:
+                    output += f"  {subkey}\n"
+            else:
+                output += f"  {subkey} = {value}\n"
+        output += f" END OF {key}\n"
+        return output
 
     @staticmethod
     def get_value_from_list_to_block(inplist, allowed_types=[[]], nblock=1, nsubblock=1):
@@ -337,6 +403,15 @@ class OpenMolcasModules():
                 raise ValueError(f"Keyword '{keyword}' with multiple lines is not recognized as BLOCK, SUBKEY, or SPECIAL.")
         
     def show_keywords(self):
-        print(f"Module: {self.module_name}")
-        for key, value in self.keywords.items():
-            print(f"  {key}: {value}")
+        print(f"Keywords for module {self.module_name}:")
+        string_to_print = ""
+        for k, v in self.keywords.items():
+            if isinstance(v, (bool, int, float, str)):
+                string_to_print += f"{OpenMolcasModules.single_value_to_molcas_input_string(k, v)}"
+            elif isinstance(v, list) and all(isinstance(row, list) for row in v):
+                string_to_print += f"{OpenMolcasModules.block_value_to_molcas_input_string(k, v)}"
+            elif isinstance(v, dict) and k != 'SPECIAL':
+                string_to_print += f"{OpenMolcasModules.dict_value_to_molcas_input_string(k, v)}"
+            else:
+                continue
+        print(string_to_print)
